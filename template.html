@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GopherCon 2026 — Grid Schedule</title>
+<style>
+  :root {
+    --bg: #fbfbfd;
+    --panel: #ffffff;
+    --ink: #14161a;
+    --ink-2: #5b6270;
+    --ink-3: #8b929f;
+    --line: #e2e5eb;
+    --line-2: #eef0f4;
+    --accent: #00a29c;
+    --shadow: 0 1px 2px rgba(16,20,28,.06), 0 8px 24px rgba(16,20,28,.06);
+    --radius: 10px;
+
+    --c-talk: #3b5bdb;      --b-talk: #eaeefc;
+    --c-workshop: #b45309;  --b-workshop: #fdf1de;
+    --c-community: #0f766e; --b-community: #dcf3f0;
+    --c-sponsor: #7c3aed;   --b-sponsor: #f0e9fd;
+    --c-food: #5c6673;      --b-food: #eef0f4;
+    --c-social: #be185d;    --b-social: #fce8f0;
+    --c-ambient: #475569;   --b-ambient: #eaeef3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1013;
+      --panel: #171a1f;
+      --ink: #e9ebef;
+      --ink-2: #a2a9b6;
+      --ink-3: #767d8b;
+      --line: #2a2f38;
+      --line-2: #21262d;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.35);
+
+      --c-talk: #9db2f7;      --b-talk: #1c2440;
+      --c-workshop: #f0b46a;  --b-workshop: #3a2812;
+      --c-community: #6ed0c4; --b-community: #0f2f2c;
+      --c-sponsor: #c4a6f8;   --b-sponsor: #291b40;
+      --c-food: #aeb6c3;      --b-food: #282e37;
+      --c-social: #f39bbd;    --b-social: #3a1526;
+      --c-ambient: #9aa5b4;   --b-ambient: #222831;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 14px/1.45 ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+  }
+  button, select, input { font: inherit; color: inherit; }
+
+  /* ------------------------------------------------------------- chrome */
+  header {
+    padding: 14px 18px 0; border-bottom: 1px solid var(--line);
+    background: var(--panel); flex: 0 0 auto;
+  }
+  .titlebar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 17px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--ink-3); font-size: 12.5px; }
+  .sub a { color: var(--ink-3); }
+
+  .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .bar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 2px; }
+  .spacer { flex: 1 1 auto; }
+
+  .tabs { display: flex; gap: 2px; background: var(--line-2); padding: 3px; border-radius: 9px; }
+  .tab {
+    border: 0; background: transparent; cursor: pointer; padding: 6px 11px;
+    border-radius: 7px; font-size: 12.5px; font-weight: 550; color: var(--ink-2);
+    display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25;
+  }
+  .tab small { font-size: 10.5px; font-weight: 450; color: var(--ink-3); }
+  .tab[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+  .tab[aria-selected="true"] small { color: var(--accent); }
+
+  select, .btn, .search {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 9px; font-size: 12.5px; cursor: pointer;
+  }
+  .search { cursor: text; width: 170px; }
+  .btn:hover, select:hover { border-color: var(--ink-3); }
+  .btn.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip {
+    border: 1px solid var(--line); background: var(--panel); border-radius: 999px;
+    padding: 4px 10px 4px 8px; font-size: 12px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; user-select: none;
+  }
+  .chip .dot { width: 9px; height: 9px; border-radius: 3px; background: var(--dot); flex: 0 0 auto; }
+  .chip[aria-pressed="false"] { opacity: .38; }
+  .chip:hover { border-color: var(--ink-3); }
+
+  .tznote {
+    margin: 0 18px 11px; padding: 7px 11px; border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    font-size: 12px; color: var(--ink-2);
+  }
+  .tznote b { color: var(--ink); }
+  .sh { font-style: normal; font-size: .82em; color: var(--accent);
+        margin-left: 3px; vertical-align: 1px; font-weight: 700; }
+
+  /* ------------------------------------------------------------- all-day band */
+  .allday { padding: 0 18px 12px; }
+  .allday h2 {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--ink-3); margin: 0 0 6px; font-weight: 600;
+  }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    background: var(--b-ambient); color: var(--c-ambient);
+    border: 1px solid transparent; border-left: 3px solid var(--c-ambient);
+    border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;
+    display: flex; gap: 7px; align-items: baseline; text-align: left;
+  }
+  .pill b { font-weight: 600; color: var(--ink); }
+  .pill span { font-variant-numeric: tabular-nums; opacity: .85; }
+  .pill:hover { border-color: var(--c-ambient); }
+
+  /* ------------------------------------------------------------- grid */
+  .scroll { flex: 1 1 auto; overflow: auto; position: relative; }
+  .grid {
+    display: grid;
+    grid-template-columns: 62px repeat(var(--n), minmax(var(--colw), 1fr));
+    min-width: max-content; position: relative;
+  }
+  .gh, .rh {
+    position: sticky; background: var(--panel); z-index: 20;
+    border-bottom: 1px solid var(--line); border-right: 1px solid var(--line-2);
+    padding: 4px 8px; font-size: 11px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .gh { top: 0; height: 26px; font-weight: 600; letter-spacing: .04em;
+        text-transform: uppercase; color: var(--ink-3); font-size: 10px;
+        border-bottom-color: var(--line-2); }
+  .rh { top: 26px; height: 38px; font-weight: 600; font-size: 12px;
+        display: flex; align-items: center; }
+  .gh.g0 { color: var(--c-talk); }
+  .corner { position: sticky; left: 0; z-index: 30; background: var(--panel); }
+  .gh.corner { top: 0; }
+  .rh.corner { top: 26px; }
+
+  .gutter {
+    position: sticky; left: 0; z-index: 10; background: var(--panel);
+    border-right: 1px solid var(--line); height: var(--h);
+  }
+  .tick {
+    position: absolute; right: 6px; font-size: 10.5px; color: var(--ink-3);
+    font-variant-numeric: tabular-nums; transform: translateY(-1px); line-height: 1;
+  }
+  .tick.off::after {
+    content: attr(data-off); display: block; font-size: 8.5px; color: var(--accent);
+    text-align: right;
+  }
+
+  .col {
+    position: relative; height: var(--h);
+    border-right: 1px solid var(--line-2);
+    background:
+      repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px var(--hr)),
+      repeating-linear-gradient(to bottom, var(--line-2) 0 1px, transparent 1px var(--hhr));
+    background-position: 0 0, 0 0;
+  }
+
+  .ev {
+    position: absolute; overflow: hidden; cursor: pointer; text-align: left;
+    border: 1px solid transparent; border-left: 3px solid var(--c);
+    background: var(--b); color: var(--ink);
+    border-radius: 6px; padding: 3px 6px 3px 7px;
+    font-size: 11.5px; line-height: 1.28;
+    /* buttons vertically centre their content in the UA stylesheet — override */
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+  }
+  .ev:hover { border-color: var(--c); z-index: 6; box-shadow: var(--shadow); }
+  .ev .tm { font-size: 10px; color: var(--c); font-weight: 600;
+            font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+  .ev .ti { font-weight: 570; display: block; }
+  .ev .sk { color: var(--ink-2); font-size: 10.5px; display: block; }
+  .ev.dim { opacity: .1; pointer-events: none; }
+  .ev.gone { display: none; }
+  .ev.tiny { padding: 1px 6px; display: block; white-space: nowrap; z-index: 4; }
+  .ev.tiny .tm { display: inline; margin-right: 4px; }
+  .ev.tiny .ti { display: inline; }
+  .ev.tiny .sk { display: none; }
+  .ev .star {
+    position: absolute; top: 1px; right: 1px; width: 18px; height: 18px;
+    border: 0; background: none; padding: 0; cursor: pointer; line-height: 1;
+    font-size: 12px; color: var(--ink-3); opacity: 0; border-radius: 4px;
+  }
+  .ev:hover .star { opacity: .7; }
+  .ev.starred .star { opacity: 1; color: #f0a020; }
+  .ev.starred { box-shadow: inset 0 0 0 1.5px #f0a020; }
+  .ev .star:hover { opacity: 1 !important; background: rgba(0,0,0,.06); }
+
+  .nowline { position: absolute; left: 0; right: 0; height: 2px; background: #e5484d;
+             z-index: 8; pointer-events: none; }
+
+  /* ------------------------------------------------------------- drawer */
+  .scrim {
+    position: fixed; inset: 0; background: rgba(10,12,16,.42); z-index: 50;
+    opacity: 0; pointer-events: none; transition: opacity .16s;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%);
+    background: var(--panel); z-index: 51; overflow-y: auto;
+    transform: translateX(100%); transition: transform .2s cubic-bezier(.4,0,.2,1);
+    box-shadow: -12px 0 40px rgba(0,0,0,.18); padding: 20px 22px 44px;
+  }
+  .drawer.open { transform: none; }
+  .drawer .x {
+    position: sticky; top: -2px; float: right; border: 0; background: var(--panel);
+    font-size: 20px; cursor: pointer; color: var(--ink-3); line-height: 1; padding: 2px 4px;
+  }
+  .drawer .kicker {
+    display: inline-block; font-size: 10.5px; font-weight: 650; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--c); background: var(--b);
+    padding: 3px 8px; border-radius: 5px; margin-bottom: 10px;
+  }
+  .drawer h3 { font-size: 19px; line-height: 1.3; margin: 0 0 12px; letter-spacing: -.01em; }
+  .meta { border-top: 1px solid var(--line-2); padding: 9px 0;
+          display: grid; grid-template-columns: 72px 1fr; gap: 10px; font-size: 13px; }
+  .meta dt { color: var(--ink-3); font-size: 11.5px; text-transform: uppercase;
+             letter-spacing: .04em; padding-top: 2px; }
+  .meta dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .meta .zone { color: var(--ink-3); font-variant-numeric: normal; }
+  .desc { font-size: 13.5px; color: var(--ink-2); margin-top: 14px;
+          border-top: 1px solid var(--line-2); padding-top: 12px; }
+  .desc p { margin: 0 0 10px; }
+  .desc :is(h1,h2,h3,h4) { font-size: 14px; color: var(--ink); margin: 14px 0 6px; }
+  .desc img { max-width: 100%; height: auto; border-radius: 8px; }
+  .spk { display: flex; gap: 11px; margin-top: 14px; align-items: flex-start; }
+  .spk img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover;
+             background: var(--line-2); flex: 0 0 auto; }
+  .spk .nm { font-weight: 600; font-size: 13.5px; }
+  .spk .rl { color: var(--ink-3); font-size: 12px; }
+  .spk .bio { color: var(--ink-2); font-size: 12.5px; margin-top: 5px;
+              max-height: 4.6em; overflow: hidden; cursor: pointer; }
+  .spk .bio.open { max-height: none; }
+  .spk a { color: var(--accent); font-size: 12px; text-decoration: none; }
+
+  .empty { padding: 40px; text-align: center; color: var(--ink-3); }
+
+  @media print {
+    header .bar, .scroll { overflow: visible; }
+    .tabs, .btn, .search, select, .star { display: none !important; }
+    .scroll { max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="titlebar">
+    <h1>GopherCon 2026</h1>
+    <div class="sub">
+      Seattle Convention Center · Summit &nbsp;·&nbsp; 3–6 Aug 2026 &nbsp;·&nbsp;
+      <a href="https://www.gophercon.com/agenda" target="_blank" rel="noopener">official agenda ↗</a>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="sep"></div>
+    <select id="tz" title="Show all times in"></select>
+    <select id="zoom" title="Row height">
+      <option value="1.7">Compact</option>
+      <option value="2.6" selected>Normal</option>
+      <option value="4">Roomy</option>
+    </select>
+    <input class="search" id="q" type="search" placeholder="Filter by title / speaker…">
+    <div class="spacer"></div>
+    <button class="btn" id="starsOnly" aria-pressed="false">★ My picks <span id="starCount"></span></button>
+    <button class="btn" id="ics" title="Download your starred sessions as a calendar file">Export .ics</button>
+  </div>
+
+  <div class="bar" style="margin-top:-2px">
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="tznote" id="tznote" hidden></div>
+  <div class="allday" id="allday"></div>
+</header>
+
+<div class="scroll" id="scroll"></div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const CATS = [
+  ['talk',      'Main stage talks'],
+  ['workshop',  'Workshops'],
+  ['community', 'Community Day'],
+  ['sponsor',   'Sponsor sessions'],
+  ['food',      'Food & breaks'],
+  ['social',    'Meetups & social'],
+  ['ambient',   'Runs all day'],
+];
+const CAT_LABEL = Object.fromEntries(CATS);
+const GROUP_CAT = {
+  'Main Stage': 'talk',
+  'Workshops (separate ticket)': 'workshop',
+  'Community Day': 'community',
+  'Sponsor Sessions': 'sponsor',
+  'Food & Breaks': 'food',
+  'Evening & Off-site': 'social',
+};
+const LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/* --------------------------------------------------------------- state */
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem('gc26.' + k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('gc26.' + k, JSON.stringify(v)); } catch {} },
+};
+/** Today if the conference is on, otherwise the main programme day. */
+function defaultDay() {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: DATA.venueTz })
+    .format(Date.now()); // en-CA gives YYYY-MM-DD
+  const onNow = DATA.days.find(d => d.d === today);
+  return (onNow || DATA.days.find(d => d.main) || DATA.days[0]).d;
+}
+const state = {
+  day: store.get('day', null) ?? defaultDay(),
+  tz: store.get('tz', DATA.venueTz),
+  ppm: store.get('ppm', 2.6),
+  off: new Set(store.get('off', [])),
+  starred: new Set(store.get('starred', [])),
+  q: '',
+  starsOnly: false,
+};
+if (!DATA.days.some(d => d.d === state.day)) state.day = DATA.days[0].d;
+
+/* --------------------------------------------------------------- time */
+const fmtCache = new Map();
+function fmt(tz, opts) {
+  const k = tz + JSON.stringify(opts);
+  if (!fmtCache.has(k)) fmtCache.set(k, new Intl.DateTimeFormat('en-GB', { timeZone: tz, ...opts }));
+  return fmtCache.get(k);
+}
+const hhmm = (ms, tz) => fmt(tz, { hour: '2-digit', minute: '2-digit', hour12: false }).format(ms);
+const ymd  = (ms, tz) => fmt(tz, { year: 'numeric', month: '2-digit', day: '2-digit' })
+                           .format(ms).split('/').reverse().join('-');
+const wday = (ms, tz) => fmt(tz, { weekday: 'short', day: 'numeric', month: 'short' }).format(ms);
+
+/** Venue-local minute-of-day -> absolute ms, for the given conference day. */
+function msAt(dayStr, minute) {
+  const [Y, M, D] = dayStr.split('-').map(Number);
+  return Date.UTC(Y, M - 1, D, 7, 0, 0) + minute * 60000; // venue = UTC-7 all week
+}
+/** '+1' / '−1' when the selected timezone lands on a different calendar date. */
+function dayShift(ms, tz, dayStr) {
+  const d = ymd(ms, tz);
+  if (d === dayStr) return '';
+  return d > dayStr ? '+1' : '−1';
+}
+
+/**
+ * A start–end label, suffixed with the date rollover when there is one.
+ * When every slot on the day rolls over identically the banner already says so,
+ * so the per-block tag is suppressed as noise (`suppress` is set by render()).
+ */
+let suppressShift = false;
+function range(a, b, tz, dayStr, plain) {
+  const sh = dayShift(a, tz, dayStr) || dayShift(b, tz, dayStr);
+  const txt = `${hhmm(a, tz)}–${hhmm(b, tz)}`;
+  if (!sh || (suppressShift && !plain)) return txt;
+  return plain ? `${txt} (${sh}d)` : `${txt}<i class="sh">${sh}d</i>`;
+}
+
+/** Minutes that `tz` is offset from UTC at instant `ms`. */
+function offsetMin(ms, tz) {
+  const p = Object.fromEntries(
+    fmt(tz, { year: 'numeric', month: '2-digit', day: '2-digit',
+              hour: '2-digit', minute: '2-digit', hour12: false })
+      .formatToParts(ms).map(x => [x.type, x.value]));
+  return Math.round(
+    (Date.UTC(+p.year, p.month - 1, +p.day, +p.hour % 24, +p.minute) - ms) / 60000);
+}
+
+/* --------------------------------------------------------------- helpers */
+const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const speakerNames = s => s.sp.map(([i]) => DATA.speakers[i].n);
+const haystack = s => (s.t + ' ' + s.r + ' ' + speakerNames(s).join(' ')).toLowerCase();
+
+/** Chips and ★-only remove a session outright; a search miss only dims it. */
+const inScope = s => !state.off.has(s.c) && (!state.starsOnly || state.starred.has(s.i));
+const hitsQuery = s => !state.q || haystack(s).includes(state.q);
+const matches = s => inScope(s) && hitsQuery(s);
+
+const MIN_H = 16; // px — a 5-minute item still needs one readable line
+
+/**
+ * Greedy lane packing so same-room overlaps sit side by side, plus a vertical
+ * pass that nudges a block down when the one above it had to be inflated to
+ * MIN_H. Any real gap in the schedule absorbs the drift, so blocks stay
+ * honest against the time axis.
+ */
+function layout(list, dayStart, ppm) {
+  const ends = [];
+  list.sort((a, b) => a.sm - b.sm || b.em - a.em);
+  for (const s of list) {
+    let l = ends.findIndex(e => e <= s.sm);
+    if (l === -1) { l = ends.length; ends.push(0); }
+    ends[l] = s.em;
+    s._lane = l;
+  }
+  const floor = new Array(ends.length).fill(0);
+  for (const s of list) {
+    s._lanes = ends.length;
+    s._h = Math.max((s.em - s.sm) * ppm - 2, MIN_H);
+    s._top = Math.max((s.sm - dayStart) * ppm, floor[s._lane]);
+    floor[s._lane] = s._top + s._h + 2;
+  }
+  return list;
+}
+
+/* --------------------------------------------------------------- toolbar */
+const tabs = document.getElementById('tabs');
+DATA.days.forEach(d => {
+  const b = el('button', 'tab', `${d.label}<small>${d.note}</small>`);
+  b.role = 'tab';
+  b.onclick = () => { state.day = d.d; store.set('day', d.d); render(); };
+  b.dataset.d = d.d;
+  tabs.append(b);
+});
+
+const tzSel = document.getElementById('tz');
+const zones = [
+  [DATA.venueTz, 'Seattle — venue time'],
+  ['Asia/Tokyo', 'Tokyo'],
+  ['UTC', 'UTC'],
+];
+if (!zones.some(z => z[0] === LOCAL_TZ)) zones.push([LOCAL_TZ, `Your time — ${LOCAL_TZ}`]);
+zones.forEach(([id, label]) => {
+  const o = el('option', '', esc(label));
+  o.value = id;
+  tzSel.append(o);
+});
+if (!zones.some(z => z[0] === state.tz)) state.tz = DATA.venueTz;
+tzSel.value = state.tz;
+tzSel.onchange = () => { state.tz = tzSel.value; store.set('tz', state.tz); render(); };
+
+const zoomSel = document.getElementById('zoom');
+zoomSel.value = String(state.ppm);
+zoomSel.onchange = () => { state.ppm = +zoomSel.value; store.set('ppm', state.ppm); render(); };
+
+const chips = document.getElementById('chips');
+CATS.forEach(([c, label]) => {
+  const b = el('button', 'chip', `<i class="dot"></i>${esc(label)}`);
+  b.style.setProperty('--dot', `var(--c-${c})`);
+  b.setAttribute('aria-pressed', String(!state.off.has(c)));
+  b.onclick = () => {
+    state.off.has(c) ? state.off.delete(c) : state.off.add(c);
+    store.set('off', [...state.off]);
+    b.setAttribute('aria-pressed', String(!state.off.has(c)));
+    render();
+  };
+  chips.append(b);
+});
+
+const qInput = document.getElementById('q');
+qInput.oninput = () => { state.q = qInput.value.trim().toLowerCase(); render(); };
+
+const starsBtn = document.getElementById('starsOnly');
+starsBtn.onclick = () => {
+  state.starsOnly = !state.starsOnly;
+  starsBtn.classList.toggle('on', state.starsOnly);
+  starsBtn.setAttribute('aria-pressed', String(state.starsOnly));
+  render();
+};
+
+/* --------------------------------------------------------------- render */
+const scroll = document.getElementById('scroll');
+const alldayBox = document.getElementById('allday');
+
+function render() {
+  const day = DATA.days.find(d => d.d === state.day);
+  [...tabs.children].forEach(t => t.setAttribute('aria-selected', String(t.dataset.d === state.day)));
+  document.getElementById('starCount').textContent = state.starred.size ? `(${state.starred.size})` : '';
+
+  const todays = DATA.sessions.filter(s => s.d === state.day);
+
+  /* ---- timezone banner: days stay grouped by the venue's calendar day */
+  const note = document.getElementById('tznote');
+  const delta = offsetMin(msAt(state.day, 720), state.tz) - offsetMin(msAt(state.day, 720), DATA.venueTz);
+  note.hidden = delta === 0;
+  if (delta) {
+    const h = Math.abs(delta) / 60;
+    const label = (zones.find(z => z[0] === state.tz) || [, state.tz])[1].split(' — ')[0];
+    note.innerHTML =
+      `Times below are <b>${esc(label)}</b>, which is <b>${h}h ${delta > 0 ? 'ahead of' : 'behind'}` +
+      ` Seattle</b>. Days are still grouped by the venue's calendar day, so a` +
+      ` <i class="sh">${delta > 0 ? '+1' : '−1'}d</i> tag means that slot falls on the ` +
+      `${delta > 0 ? 'next' : 'previous'} date where you are.`;
+  }
+  // If the entire day rolls over the same way, the banner covers it — drop the
+  // per-block tags and keep them only for days that straddle midnight.
+  suppressShift = new Set(
+    todays.flatMap(s => [dayShift(msAt(s.d, s.sm), state.tz, s.d),
+                         dayShift(msAt(s.d, s.em), state.tz, s.d)])
+  ).size === 1;
+
+  /* ---- all-day band */
+  const ambient = todays.filter(s => s.c === 'ambient' && matches(s));
+  alldayBox.innerHTML = '';
+  if (ambient.length) {
+    alldayBox.append(el('h2', '', 'Runs all day — drop in any time'));
+    const pills = el('div', 'pills');
+    ambient.sort((a, b) => a.sm - b.sm).forEach(s => {
+      const a = msAt(s.d, s.sm), b = msAt(s.d, s.em);
+      const p = el('button', 'pill',
+        `<b>${esc(s.t)}</b><span>${range(a, b, state.tz, s.d)}</span>`);
+      p.title = s.rf;
+      p.onclick = () => openDrawer(s);
+      pills.append(p);
+    });
+    alldayBox.append(pills);
+  }
+
+  /* ---- grid */
+  const grid = todays.filter(s => s.c !== 'ambient');
+  if (!grid.length) {
+    scroll.innerHTML = '<div class="empty">Nothing scheduled matches these filters.</div>';
+    return;
+  }
+
+  const span = day.end - day.start;
+  const H = span * state.ppm;
+  const g = el('div', 'grid');
+  g.style.setProperty('--n', day.cols.length);
+  g.style.setProperty('--h', H + 'px');
+  g.style.setProperty('--hr', 60 * state.ppm + 'px');
+  g.style.setProperty('--hhr', 30 * state.ppm + 'px');
+  g.style.setProperty('--colw', state.ppm > 3 ? '210px' : '176px');
+
+  // group header row
+  g.append(el('div', 'gh corner'));
+  for (let i = 0; i < day.cols.length;) {
+    let j = i;
+    while (j < day.cols.length && day.cols[j].g === day.cols[i].g) j++;
+    const h = el('div', 'gh', esc(day.cols[i].g));
+    h.style.gridColumn = `span ${j - i}`;
+    h.style.color = `var(--c-${GROUP_CAT[day.cols[i].g] || 'ambient'})`;
+    g.append(h);
+    i = j;
+  }
+
+  // room header row
+  g.append(el('div', 'rh corner', '<span style="color:var(--ink-3);font-weight:500">room ↓</span>'));
+  day.cols.forEach(c => {
+    const h = el('div', 'rh', esc(c.r));
+    h.title = c.r;
+    g.append(h);
+  });
+
+  // time gutter
+  const gut = el('div', 'gutter');
+  for (let m = day.start; m <= day.end; m += 60) {
+    const ms = msAt(state.day, m);
+    const shift = dayShift(ms, state.tz, state.day);
+    const t = el('div', 'tick' + (shift ? ' off' : ''), hhmm(ms, state.tz));
+    if (shift) t.dataset.off = shift + 'd';
+    t.style.top = (m - day.start) * state.ppm + 'px';
+    gut.append(t);
+  }
+  g.append(gut);
+
+  // columns
+  const now = Date.now();
+  day.cols.forEach(c => {
+    const col = el('div', 'col');
+    const list = layout(grid.filter(s => s.r === c.r), day.start, state.ppm);
+    list.forEach(s => {
+      const a = msAt(s.d, s.sm), b = msAt(s.d, s.em);
+      const hpx = s._h;
+      const names = speakerNames(s);
+      const ev = el('button', 'ev' + (hpx < 34 ? ' tiny' : ''));
+      ev.style.cssText =
+        `top:${s._top}px;height:${hpx}px;` +
+        `left:calc(${(s._lane / s._lanes) * 100}% + 1px);` +
+        `width:calc(${100 / s._lanes}% - 3px);` +
+        `--c:var(--c-${s.c});--b:var(--b-${s.c})`;
+      ev.innerHTML =
+        `<span class="tm">${range(a, b, state.tz, s.d)}</span>` +
+        `<span class="ti">${esc(s.t)}</span>` +
+        (names.length && hpx > 46 ? `<span class="sk">${esc(names.join(', '))}</span>` : '') +
+        `<button class="star" title="Add to my picks">${state.starred.has(s.i) ? '★' : '☆'}</button>`;
+      if (state.starred.has(s.i)) ev.classList.add('starred');
+      if (!inScope(s)) ev.classList.add('gone');
+      else if (!hitsQuery(s)) ev.classList.add('dim');
+      ev.title = `${s.t}\n${range(a, b, state.tz, s.d, true)}\n${s.rf}` +
+                 (names.length ? `\n${names.join(', ')}` : '');
+      ev.onclick = e => {
+        if (e.target.classList.contains('star')) {
+          e.stopPropagation();
+          state.starred.has(s.i) ? state.starred.delete(s.i) : state.starred.add(s.i);
+          store.set('starred', [...state.starred]);
+          render();
+        } else openDrawer(s);
+      };
+      col.append(ev);
+    });
+    if (now >= msAt(state.day, day.start) && now <= msAt(state.day, day.end)) {
+      const n = el('div', 'nowline');
+      n.style.top = ((now - msAt(state.day, day.start)) / 60000) * state.ppm + 'px';
+      col.append(n);
+    }
+    g.append(col);
+  });
+
+  scroll.innerHTML = '';
+  scroll.append(g);
+}
+
+/* --------------------------------------------------------------- drawer */
+const drawer = document.getElementById('drawer');
+const scrim = document.getElementById('scrim');
+const closeDrawer = () => {
+  drawer.classList.remove('open');
+  scrim.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+};
+scrim.onclick = closeDrawer;
+document.addEventListener('keydown', e => e.key === 'Escape' && closeDrawer());
+
+function openDrawer(s) {
+  const a = msAt(s.d, s.sm), b = msAt(s.d, s.em);
+  const rows = zones.map(([id, label]) => {
+    const shift = dayShift(a, id, s.d);
+    return `<dt>${esc(label.split(' — ')[0])}</dt><dd>${hhmm(a, id)}–${hhmm(b, id)}
+      <span class="zone">${esc(wday(a, id))}${shift ? ` (${shift}d)` : ''}</span></dd>`;
+  }).join('');
+
+  const dur = s.em - s.sm;
+  const durTxt = dur >= 60 ? `${Math.floor(dur / 60)}h${dur % 60 ? ' ' + (dur % 60) + 'm' : ''}` : dur + 'm';
+
+  drawer.innerHTML =
+    `<button class="x" aria-label="Close">×</button>` +
+    `<span class="kicker" style="--c:var(--c-${s.c});--b:var(--b-${s.c})">${esc(CAT_LABEL[s.c])}</span>` +
+    `<h3>${esc(s.t)}</h3>` +
+    `<button class="btn ${state.starred.has(s.i) ? 'on' : ''}" id="dstar" style="margin-bottom:12px">
+       ${state.starred.has(s.i) ? '★ In my picks' : '☆ Add to my picks'}</button>` +
+    `<dl class="meta">${rows}
+       <dt>Duration</dt><dd>${durTxt}</dd>
+       <dt>Room</dt><dd style="font-variant-numeric:normal">${esc(s.rf)}</dd></dl>` +
+    (s.x ? `<div class="desc">${s.x}</div>` : '') +
+    s.sp.map(([i, role]) => {
+      const p = DATA.speakers[i];
+      const who = [p.t, p.co].filter(Boolean).join(', ');
+      return `<div class="spk">
+        ${p.im ? `<img src="${esc(p.im)}" alt="" loading="lazy">` : '<img alt="">'}
+        <div><div class="nm">${esc(p.n)}</div>
+        <div class="rl">${esc(who || role)}${who && role !== 'Speaker' ? ' · ' + esc(role) : ''}</div>
+        ${p.b ? `<div class="bio" title="Click to expand">${esc(p.b)}</div>` : ''}
+        ${p.li ? `<a href="${esc(p.li)}" target="_blank" rel="noopener">LinkedIn ↗</a> ` : ''}
+        ${p.w ? `<a href="${esc(p.w)}" target="_blank" rel="noopener">Website ↗</a>` : ''}
+        </div></div>`;
+    }).join('');
+
+  drawer.querySelector('.x').onclick = closeDrawer;
+  drawer.querySelector('#dstar').onclick = () => {
+    state.starred.has(s.i) ? state.starred.delete(s.i) : state.starred.add(s.i);
+    store.set('starred', [...state.starred]);
+    render();
+    openDrawer(s);
+  };
+  drawer.querySelectorAll('.bio').forEach(b => b.onclick = () => b.classList.toggle('open'));
+  drawer.scrollTop = 0;
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  scrim.classList.add('open');
+  history.replaceState(null, '', '#s=' + s.i);
+}
+
+/** #s=<sessionId> deep link, so a session can be shared with a colleague. */
+function openFromHash() {
+  const m = /^#s=(\d+)$/.exec(location.hash);
+  if (!m) return;
+  const s = DATA.sessions.find(x => x.i === +m[1]);
+  if (!s) return;
+  if (s.d !== state.day) { state.day = s.d; render(); }
+  openDrawer(s);
+}
+addEventListener('hashchange', openFromHash);
+
+/* --------------------------------------------------------------- ics */
+document.getElementById('ics').onclick = () => {
+  const picks = DATA.sessions.filter(s => state.starred.has(s.i));
+  if (!picks.length) return alert('Star a few sessions first — then this downloads them as a calendar file.');
+  const stamp = ms => new Date(ms).toISOString().replace(/[-:]|\.\d{3}/g, '');
+  const esc5545 = s => s.replace(/[\\;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  const u8 = cp => cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+  /** RFC 5545 §3.1: fold content lines at 75 octets with a leading space. */
+  const fold = line => {
+    const out = [];
+    let cur = '', n = 0;
+    for (const ch of line) {
+      const w = u8(ch.codePointAt(0));
+      if (n + w > 73) { out.push(cur); cur = ' '; n = 1; }
+      cur += ch; n += w;
+    }
+    out.push(cur);
+    return out.join('\r\n');
+  };
+  const body = picks.map(s => {
+    const plain = s.x.replace(/<[^>]+>/g, ' ').replace(/&\w+;/g, ' ').replace(/\s+/g, ' ').trim();
+    const who = speakerNames(s).join(', ');
+    const desc = esc5545((who ? who + '\n\n' : '') + plain).slice(0, 900);
+    return ['BEGIN:VEVENT',
+      `UID:gc26-${s.i}@gophercon.com`,
+      `DTSTAMP:${stamp(Date.now())}`,
+      `DTSTART:${stamp(msAt(s.d, s.sm))}`,
+      `DTEND:${stamp(msAt(s.d, s.em))}`,
+      fold(`SUMMARY:${esc5545(s.t)}`),
+      fold(`LOCATION:${esc5545(s.rf)}`),
+      fold(`DESCRIPTION:${desc}`),
+      'END:VEVENT'].join('\r\n');
+  }).join('\r\n');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//gophercon2026-grid//EN',
+    'CALSCALE:GREGORIAN', body, 'END:VCALENDAR'].join('\r\n');
+  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'gophercon2026-my-picks.ics' });
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+render();
+openFromHash();
+</script>
+</body>
+</html>
