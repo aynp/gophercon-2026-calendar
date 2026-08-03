@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>GopherCon 2026 — Grid Schedule</title>
 <style>
   :root {
@@ -47,14 +48,17 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
+  html, body { margin: 0; }
   body {
+    /* dvh so mobile browser chrome collapsing doesn't clip the grid */
+    height: 100dvh; min-height: 100dvh;
     background: var(--bg); color: var(--ink);
     font: 14px/1.45 ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     display: flex; flex-direction: column;
   }
   button, select, input { font: inherit; color: inherit; }
+  .only-mobile { display: none !important; }
 
   /* ------------------------------------------------------------- chrome */
   header {
@@ -69,6 +73,9 @@
   .bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
   .bar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 2px; }
   .spacer { flex: 1 1 auto; }
+  /* On desktop the panel is just more toolbar; on phones it becomes a sheet. */
+  .panel { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1 1 auto; }
+  .panel .chips { flex-basis: 100%; }
 
   .tabs { display: flex; gap: 2px; background: var(--line-2); padding: 3px; border-radius: 9px; }
   .tab {
@@ -104,7 +111,14 @@
     border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
     font-size: 12px; color: var(--ink-2);
   }
+  .tznote { position: relative; padding-right: 30px; }
   .tznote b { color: var(--ink); }
+  .notex {
+    position: absolute; top: 3px; right: 4px; border: 0; background: none;
+    color: var(--ink-3); font-size: 17px; line-height: 1; cursor: pointer;
+    padding: 2px 6px; border-radius: 5px;
+  }
+  .notex:hover { color: var(--ink); }
   .sh { font-style: normal; font-size: .82em; color: var(--accent);
         margin-left: 3px; vertical-align: 1px; font-weight: 700; }
 
@@ -113,7 +127,9 @@
   .allday h2 {
     font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em;
     color: var(--ink-3); margin: 0 0 6px; font-weight: 600;
+    background: none; border: 0; padding: 0; text-align: left; width: 100%;
   }
+  .allday h2 .caret { display: none; }
   .pills { display: flex; gap: 6px; flex-wrap: wrap; }
   .pill {
     background: var(--b-ambient); color: var(--c-ambient);
@@ -126,10 +142,14 @@
   .pill:hover { border-color: var(--c-ambient); }
 
   /* ------------------------------------------------------------- grid */
-  .scroll { flex: 1 1 auto; overflow: auto; position: relative; }
+  .scroll {
+    flex: 1 1 auto; overflow: auto; position: relative;
+    -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  }
   .grid {
+    --gw: 62px; --ghH: 26px; --rhH: 38px;
     display: grid;
-    grid-template-columns: 62px repeat(var(--n), minmax(var(--colw), 1fr));
+    grid-template-columns: var(--gw) repeat(var(--n), minmax(var(--colw), 1fr));
     min-width: max-content; position: relative;
   }
   .gh, .rh {
@@ -138,15 +158,14 @@
     padding: 4px 8px; font-size: 11px; white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis;
   }
-  .gh { top: 0; height: 26px; font-weight: 600; letter-spacing: .04em;
+  .gh { top: 0; height: var(--ghH); font-weight: 600; letter-spacing: .04em;
         text-transform: uppercase; color: var(--ink-3); font-size: 10px;
         border-bottom-color: var(--line-2); }
-  .rh { top: 26px; height: 38px; font-weight: 600; font-size: 12px;
+  .rh { top: var(--ghH); height: var(--rhH); font-weight: 600; font-size: 12px;
         display: flex; align-items: center; }
-  .gh.g0 { color: var(--c-talk); }
   .corner { position: sticky; left: 0; z-index: 30; background: var(--panel); }
   .gh.corner { top: 0; }
-  .rh.corner { top: 26px; }
+  .rh.corner { top: var(--ghH); }
 
   .gutter {
     position: sticky; left: 0; z-index: 10; background: var(--panel);
@@ -182,11 +201,17 @@
   .ev:hover { border-color: var(--c); z-index: 6; box-shadow: var(--shadow); }
   .ev .tm { font-size: 10px; color: var(--c); font-weight: 600;
             font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-  .ev .ti { font-weight: 570; display: block; }
+  /* --lines is computed per block from its pixel height (see render()) */
+  .ev .ti { font-weight: 570; display: -webkit-box; -webkit-box-orient: vertical;
+            -webkit-line-clamp: var(--lines, 4); overflow: hidden; }
   .ev .sk { color: var(--ink-2); font-size: 10.5px; display: block; }
   .ev.dim { opacity: .1; pointer-events: none; }
   .ev.gone { display: none; }
-  .ev.tiny { padding: 1px 6px; display: block; white-space: nowrap; z-index: 4; }
+  .ev.tiny { padding: 0 6px; display: block; white-space: nowrap; z-index: 4;
+             line-height: 1.15; }
+  /* a 5-minute block is shorter than the default star: centre and shrink it */
+  .ev.tiny .star { top: 0; height: 100%; width: 17px; font-size: 11px;
+                   display: flex; align-items: center; justify-content: center; }
   .ev.tiny .tm { display: inline; margin-right: 4px; }
   .ev.tiny .ti { display: inline; }
   .ev.tiny .sk { display: none; }
@@ -249,6 +274,89 @@
 
   .empty { padding: 40px; text-align: center; color: var(--ink-3); }
 
+  /* ------------------------------------------------------------- phones
+     Goal: give the grid the screen back. The chrome above it collapses from
+     ~450px to ~105px, and secondary controls move into a bottom sheet. */
+  @media (max-width: 720px) {
+    .only-mobile { display: inline-flex !important; }
+    header { padding: 9px 12px 0; }
+    .titlebar { gap: 7px; align-items: center; }
+    h1 { font-size: 15px; }
+    .sub { display: none; }
+    .bar { gap: 7px; margin: 8px 0; }
+    .bar .sep, .panel .spacer { display: none; }
+
+    /* day tabs: one scrollable line, no wrapping */
+    .tabs { flex: 1 1 auto; overflow-x: auto; scrollbar-width: none;
+            -webkit-overflow-scrolling: touch; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex: 0 0 auto; white-space: nowrap; padding: 5px 9px; }
+    .tab small { display: none; }
+    .tab[aria-selected="true"] small { display: block; font-size: 9.5px; }
+
+    #tz { flex: 0 1 auto; min-width: 0; max-width: 47%; }
+    #sheetBtn { flex: 0 0 auto; }
+
+    /* secondary controls -> bottom sheet */
+    .panel {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      flex-direction: column; align-items: stretch; gap: 10px;
+      background: var(--panel); border-radius: 15px 15px 0 0;
+      padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+      box-shadow: 0 -8px 40px rgba(0,0,0,.32);
+      max-height: 82dvh; overflow-y: auto;
+      transform: translateY(101%); transition: transform .22s cubic-bezier(.4,0,.2,1);
+      visibility: hidden;
+    }
+    body.sheet .panel { transform: none; visibility: visible; }
+    .panel .search, .panel .btn, .panel select { width: 100%; padding: 9px 11px; }
+    .panel .chips { gap: 7px; }
+    .panel .chip { padding: 7px 12px 7px 10px; font-size: 13px; }
+    .sheet-grip {
+      align-self: center; width: 40px; height: 4px; border: 0; padding: 0;
+      border-radius: 99px; background: var(--line); margin-bottom: 2px;
+    }
+
+    .tznote { margin: 0 12px 8px; padding: 6px 9px; font-size: 11.5px; }
+
+    /* all-day band collapses behind its own heading */
+    .allday { padding: 0 12px 8px; }
+    .allday h2 { cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .allday h2 .caret { display: inline; transition: transform .15s;
+                        color: var(--accent); font-size: 13px; line-height: 1; }
+    body.ad-open .allday h2 .caret { transform: rotate(90deg); }
+    .allday .pills {
+      max-height: 0; overflow: hidden; transition: max-height .2s;
+    }
+    body.ad-open .allday .pills { max-height: 40dvh; overflow-y: auto; padding-top: 6px; }
+
+    /* denser grid: ~3 columns visible instead of 1.8 */
+    .grid { --gw: 44px; --ghH: 22px; --rhH: 30px; }
+    .rh { font-size: 11.5px; padding: 3px 6px; }
+    .tick { font-size: 10px; right: 4px; }
+    .ev { font-size: 11px; padding: 2px 4px 2px 5px; }
+    .ev .tm { font-size: 9.5px; }
+    .ev .sk { font-size: 10px; }
+
+    /* detail view becomes a bottom sheet too */
+    .drawer {
+      width: 100%; top: auto; height: 88dvh; border-radius: 15px 15px 0 0;
+      transform: translateY(100%); padding: 16px 16px calc(40px + env(safe-area-inset-bottom));
+      box-shadow: 0 -8px 40px rgba(0,0,0,.32);
+    }
+    .drawer.open { transform: none; }
+    .drawer .x { font-size: 26px; padding: 0 6px; }
+    .drawer h3 { font-size: 18px; }
+    .meta { grid-template-columns: 64px 1fr; }
+  }
+
+  /* no hover on touch: stars must be visible without one */
+  @media (hover: none) {
+    .ev .star { opacity: .5; }
+    .ev:not(.tiny) .star { width: 22px; height: 22px; font-size: 14px; }
+    .ev.starred .star { opacity: 1; }
+  }
+
   @media print {
     header .bar, .scroll { overflow: visible; }
     .tabs, .btn, .search, select, .star { display: none !important; }
@@ -271,19 +379,21 @@
     <div class="tabs" id="tabs" role="tablist"></div>
     <div class="sep"></div>
     <select id="tz" title="Show all times in"></select>
-    <select id="zoom" title="Row height">
-      <option value="1.7">Compact</option>
-      <option value="2.6" selected>Normal</option>
-      <option value="4">Roomy</option>
-    </select>
-    <input class="search" id="q" type="search" placeholder="Filter by title / speaker…">
-    <div class="spacer"></div>
-    <button class="btn" id="starsOnly" aria-pressed="false">★ My picks <span id="starCount"></span></button>
-    <button class="btn" id="ics" title="Download your starred sessions as a calendar file">Export .ics</button>
-  </div>
+    <button class="btn only-mobile" id="sheetBtn" aria-expanded="false">Filters &amp; more</button>
 
-  <div class="bar" style="margin-top:-2px">
-    <div class="chips" id="chips"></div>
+    <div class="panel" id="panel">
+      <button class="sheet-grip only-mobile" id="sheetClose" aria-label="Close"></button>
+      <select id="zoom" title="Row height">
+        <option value="1.7">Compact</option>
+        <option value="2.6" selected>Normal</option>
+        <option value="4">Roomy</option>
+      </select>
+      <input class="search" id="q" type="search" placeholder="Filter by title / speaker…">
+      <div class="spacer"></div>
+      <button class="btn" id="starsOnly" aria-pressed="false">★ My picks <span id="starCount"></span></button>
+      <button class="btn" id="ics" title="Download your starred sessions as a calendar file">Export .ics</button>
+      <div class="chips" id="chips"></div>
+    </div>
   </div>
 
   <div class="tznote" id="tznote" hidden></div>
@@ -393,6 +503,7 @@ const el = (t, c, h) => { const n = document.createElement(t); if (c) n.classNam
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const speakerNames = s => s.sp.map(([i]) => DATA.speakers[i].n);
 const haystack = s => (s.t + ' ' + s.r + ' ' + speakerNames(s).join(' ')).toLowerCase();
+// blocks show the trimmed title; the drawer, tooltip and search use the full one
 
 /** Chips and ★-only remove a session outright; a search miss only dims it. */
 const inScope = s => !state.off.has(s.c) && (!state.starsOnly || state.starred.has(s.i));
@@ -470,6 +581,16 @@ CATS.forEach(([c, label]) => {
   chips.append(b);
 });
 
+/* bottom sheet for the secondary controls (phones only) */
+const sheetBtn = document.getElementById('sheetBtn');
+const setSheet = open => {
+  document.body.classList.toggle('sheet', open);
+  sheetBtn.setAttribute('aria-expanded', String(open));
+  scrimSync();
+};
+sheetBtn.onclick = () => setSheet(!document.body.classList.contains('sheet'));
+document.getElementById('sheetClose').onclick = () => setSheet(false);
+
 const qInput = document.getElementById('q');
 qInput.oninput = () => { state.q = qInput.value.trim().toLowerCase(); render(); };
 
@@ -487,7 +608,11 @@ const alldayBox = document.getElementById('allday');
 
 function render() {
   const day = DATA.days.find(d => d.d === state.day);
-  [...tabs.children].forEach(t => t.setAttribute('aria-selected', String(t.dataset.d === state.day)));
+  [...tabs.children].forEach(t => {
+    const on = t.dataset.d === state.day;
+    t.setAttribute('aria-selected', String(on));
+    if (on) t.scrollIntoView({ inline: 'center', block: 'nearest' }); // strip scrolls on phones
+  });
   document.getElementById('starCount').textContent = state.starred.size ? `(${state.starred.size})` : '';
 
   const todays = DATA.sessions.filter(s => s.d === state.day);
@@ -495,15 +620,20 @@ function render() {
   /* ---- timezone banner: days stay grouped by the venue's calendar day */
   const note = document.getElementById('tznote');
   const delta = offsetMin(msAt(state.day, 720), state.tz) - offsetMin(msAt(state.day, 720), DATA.venueTz);
-  note.hidden = delta === 0;
-  if (delta) {
+  note.hidden = delta === 0 || store.get('noteHidden', null) === state.tz;
+  if (delta && !note.hidden) {
     const h = Math.abs(delta) / 60;
     const label = (zones.find(z => z[0] === state.tz) || [, state.tz])[1].split(' — ')[0];
     note.innerHTML =
       `Times below are <b>${esc(label)}</b>, which is <b>${h}h ${delta > 0 ? 'ahead of' : 'behind'}` +
       ` Seattle</b>. Days are still grouped by the venue's calendar day, so a` +
       ` <i class="sh">${delta > 0 ? '+1' : '−1'}d</i> tag means that slot falls on the ` +
-      `${delta > 0 ? 'next' : 'previous'} date where you are.`;
+      `${delta > 0 ? 'next' : 'previous'} date where you are.` +
+      `<button class="notex" aria-label="Dismiss">×</button>`;
+    note.querySelector('.notex').onclick = () => {
+      store.set('noteHidden', state.tz);   // reappears if the zone changes
+      note.hidden = true;
+    };
   }
   // If the entire day rolls over the same way, the banner covers it — drop the
   // per-block tags and keep them only for days that straddle midnight.
@@ -516,12 +646,16 @@ function render() {
   const ambient = todays.filter(s => s.c === 'ambient' && matches(s));
   alldayBox.innerHTML = '';
   if (ambient.length) {
-    alldayBox.append(el('h2', '', 'Runs all day — drop in any time'));
+    // <h2> is a button so the band can collapse on phones; inert on desktop
+    const head = el('h2', '', `<span class="caret">▸</span>` +
+      `<span>Runs all day — drop in any time (${ambient.length})</span>`);
+    head.onclick = () => document.body.classList.toggle('ad-open');
+    alldayBox.append(head);
     const pills = el('div', 'pills');
     ambient.sort((a, b) => a.sm - b.sm).forEach(s => {
       const a = msAt(s.d, s.sm), b = msAt(s.d, s.em);
       const p = el('button', 'pill',
-        `<b>${esc(s.t)}</b><span>${range(a, b, state.tz, s.d)}</span>`);
+        `<b>${esc(s.st)}</b><span>${range(a, b, state.tz, s.d)}</span>`);
       p.title = s.rf;
       p.onclick = () => openDrawer(s);
       pills.append(p);
@@ -543,7 +677,10 @@ function render() {
   g.style.setProperty('--h', H + 'px');
   g.style.setProperty('--hr', 60 * state.ppm + 'px');
   g.style.setProperty('--hhr', 30 * state.ppm + 'px');
-  g.style.setProperty('--colw', state.ppm > 3 ? '210px' : '176px');
+  const narrow = matchMedia('(max-width: 720px)').matches;
+  g.style.setProperty('--colw',
+    narrow ? (state.ppm > 3 ? '148px' : '122px')   // ~3 columns on a 390px screen
+           : (state.ppm > 3 ? '210px' : '176px'));
 
   // group header row
   g.append(el('div', 'gh corner'));
@@ -558,7 +695,8 @@ function render() {
   }
 
   // room header row
-  g.append(el('div', 'rh corner', '<span style="color:var(--ink-3);font-weight:500">room ↓</span>'));
+  g.append(el('div', 'rh corner',
+    narrow ? '' : '<span style="color:var(--ink-3);font-weight:500">room ↓</span>'));
   day.cols.forEach(c => {
     const h = el('div', 'rh', esc(c.r));
     h.title = c.r;
@@ -586,16 +724,24 @@ function render() {
       const a = msAt(s.d, s.sm), b = msAt(s.d, s.em);
       const hpx = s._h;
       const names = speakerNames(s);
+      // Budget the block's height: time row first, then the speaker line if it
+      // leaves room for at least one title line, then clamp the title to the rest.
+      const LH = narrow ? 14.1 : 15, TM = narrow ? 12.2 : 13, SK = narrow ? 13 : 14;
+      let avail = hpx - TM - 5;
+      const showSk = names.length > 0 && avail - SK >= LH;
+      if (showSk) avail -= SK;
+      const lines = Math.max(1, Math.floor(avail / LH));
+
       const ev = el('button', 'ev' + (hpx < 34 ? ' tiny' : ''));
       ev.style.cssText =
         `top:${s._top}px;height:${hpx}px;` +
         `left:calc(${(s._lane / s._lanes) * 100}% + 1px);` +
         `width:calc(${100 / s._lanes}% - 3px);` +
-        `--c:var(--c-${s.c});--b:var(--b-${s.c})`;
+        `--lines:${lines};--c:var(--c-${s.c});--b:var(--b-${s.c})`;
       ev.innerHTML =
         `<span class="tm">${range(a, b, state.tz, s.d)}</span>` +
-        `<span class="ti">${esc(s.t)}</span>` +
-        (names.length && hpx > 46 ? `<span class="sk">${esc(names.join(', '))}</span>` : '') +
+        `<span class="ti">${esc(s.st)}</span>` +
+        (showSk ? `<span class="sk">${esc(names.join(', '))}</span>` : '') +
         `<button class="star" title="Add to my picks">${state.starred.has(s.i) ? '★' : '☆'}</button>`;
       if (state.starred.has(s.i)) ev.classList.add('starred');
       if (!inScope(s)) ev.classList.add('gone');
@@ -627,14 +773,22 @@ function render() {
 /* --------------------------------------------------------------- drawer */
 const drawer = document.getElementById('drawer');
 const scrim = document.getElementById('scrim');
+/** One scrim serves both the detail drawer and the mobile controls sheet. */
+function scrimSync() {
+  const on = drawer.classList.contains('open') || document.body.classList.contains('sheet');
+  scrim.classList.toggle('open', on);
+}
 const closeDrawer = () => {
   drawer.classList.remove('open');
-  scrim.classList.remove('open');
   drawer.setAttribute('aria-hidden', 'true');
+  scrimSync();
   if (location.hash) history.replaceState(null, '', location.pathname + location.search);
 };
-scrim.onclick = closeDrawer;
-document.addEventListener('keydown', e => e.key === 'Escape' && closeDrawer());
+scrim.onclick = () => { setSheet(false); closeDrawer(); };
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.body.classList.contains('sheet') ? setSheet(false) : closeDrawer();
+});
 
 function openDrawer(s) {
   const a = msAt(s.d, s.sm), b = msAt(s.d, s.em);
@@ -681,7 +835,8 @@ function openDrawer(s) {
   drawer.scrollTop = 0;
   drawer.classList.add('open');
   drawer.setAttribute('aria-hidden', 'false');
-  scrim.classList.add('open');
+  setSheet(false);        // a tap-through from the sheet shouldn't leave it open
+  scrimSync();
   history.replaceState(null, '', '#s=' + s.i);
 }
 

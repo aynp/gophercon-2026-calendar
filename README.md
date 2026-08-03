@@ -35,6 +35,7 @@ This view fixes both problems:
 | Detail | Click any block for the abstract, speaker bios, and times in every zone |
 | Links | `index.html#s=<sessionId>` deep-links a session, for sharing |
 | Density | Compact / Normal / Roomy row heights |
+| Phones | Collapsed chrome, scrollable day strip, controls in a bottom sheet |
 
 Everything stays local — starred sessions live in `localStorage`, the `.ics` is
 generated in-browser.
@@ -50,6 +51,31 @@ generated in-browser.
 - Same-room overlaps split into side-by-side lanes.
 - A 5-minute item is floored at 16px so it stays readable; the block below it is
   nudged down, and any real gap in the schedule absorbs the drift.
+- Each block budgets its own height: time row first, then the speaker line if a
+  title line still fits, then the title is clamped to whatever rows remain. So
+  nothing ever spills past a block, at any column width or density.
+- Grid labels drop `(requires a separate ticket)` and the
+  `Half-Day Workshop:` / `Community Day:` prefixes, since the group header above
+  the column already says it. Search, tooltips and the detail view use the full title.
+
+## Phones
+
+At ≤720px the chrome collapses from **646px to 160px**, which grows the scrollable
+calendar from 198px to 684px on a 390×844 screen — measured, not estimated.
+
+- Day tabs become a one-line horizontal strip that auto-scrolls the active day into view.
+- Density, search, ★ picks, export and the category chips move into a bottom sheet
+  behind **Filters & more**; the timezone picker stays on the top bar.
+- The all-day band collapses behind its heading — tap to expand.
+- The timezone banner is dismissible (it returns if you change zone).
+- Columns narrow to 122px so ~3 tracks are visible at once, and the time gutter
+  stays pinned while you scroll sideways.
+- The detail view becomes a bottom sheet, star buttons are always visible (no hover
+  on touch), and `100dvh` keeps the grid from being clipped by browser chrome.
+
+Verified at 360 / 390 / 430px with no horizontal overflow. Note that headless Chrome
+clamps `--window-size` to a 500px minimum, so responsive checks go through an iframe
+harness rather than the window size.
 
 ## Regenerating
 

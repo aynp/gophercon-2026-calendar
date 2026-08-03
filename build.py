@@ -67,6 +67,24 @@ CAT_GROUP = {
 }
 
 
+# Boilerplate that the column's group header already conveys. Stripped from the
+# grid block label only — the drawer and search still use the full title.
+TITLE_TRIM = [
+    # "(by invitation only)" is deliberately kept — it is real information
+    (r"\s*\(requires a separate ticket\)", ""),
+    (r"^Half-Day Workshop:\s*", "½-day: "),
+    (r"^Full-Day Workshop:\s*", "Full-day: "),
+    (r"^Sponsored Workshop:\s*", "Workshop: "),
+    (r"^Community Day:\s*", ""),
+]
+
+
+def short_title(title):
+    for pat, rep in TITLE_TRIM:
+        title = re.sub(pat, rep, title)
+    return title.strip()
+
+
 def short_room(name):
     """Collapse 'Meeting Room 433, Level 4, SCC | Summit' -> 'MR 433'."""
     head = name.split(",")[0].strip()
@@ -143,6 +161,7 @@ for x in sessions_raw:
         {
             "i": x["id"],
             "t": x["title"],
+            "st": short_title(x["title"]),
             "s": to_ms(x["startTime"]),
             "e": to_ms(x["endTime"]),
             "sm": x["startMinute"],
